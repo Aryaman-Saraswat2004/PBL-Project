@@ -8,6 +8,7 @@
     "start": "next start"
   },
   "dependencies": {
+    "@elevenlabs/elevenlabs-js": "^2.18.0",
     "@radix-ui/react-dialog": "^1.1.15",
     "@stackframe/stack": "^2.8.41",
     "assemblyai": "^4.16.1",
