@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useContext, useState } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -14,6 +14,7 @@ import Image from 'next/image'
 import { useMutation } from 'convex/react'
 import { api } from '@/convex/_generated/api'
 import { useRouter } from 'next/navigation'
+import { UserContext } from '@/app/_context/UserContext'
 
 function UserInputDialog({ children, ExpertList }) {
     const [selectedExpert, setSelectedExpert] = useState();
@@ -23,13 +24,15 @@ function UserInputDialog({ children, ExpertList }) {
     const [loading, setLoading] = useState(false);
     const[openDialog, setOpenDialog] = useState(false);
     const router = useRouter();
+    const {userData}=useContext(UserContext);
         
     const OnClickNext= async () => {
         setLoading(true);
         const result = await createDiscussionRoom({
             topic:topic,
             coachingOptions: ExpertList?.name,
-            expertName: selectedExpert
+            expertName: selectedExpert,
+            uid:userData?._id
         });
         console.log(result);
         setLoading(false);

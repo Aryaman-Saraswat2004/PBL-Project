@@ -1,15 +1,14 @@
 "use client";
 import React, { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
-import { useQuery } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { CoachingExpert } from "@/services/Options";
-import { AIModel } from "@/services/GlobalServices";
+import { AIModel, AIModelFeedback } from "@/services/GlobalServices";
 import Image from "next/image";
 import axios from "axios";
 
-function DiscussionRoom()
-{
+function DiscussionRoom() {
   const { roomid } = useParams();
   const DiscussionRoomData = useQuery(api.DiscussionRoom.GetDiscussionRoom, { id: roomid });
 
@@ -18,63 +17,54 @@ function DiscussionRoom()
   const [transcript, setTranscript] = useState("");
   const [chatHistory, setChatHistory] = useState([]);
   const [messageQueue, setMessageQueue] = useState([]);
+  const [enableFeedback, setEnableFeedback] = useState(false);
+
   const recognitionRef = useRef(null);
   const isManuallyDisconnected = useRef(false);
+  const UpdateConversation = useMutation(api.DiscussionRoom.UpdateConversation);
+  const UpdateSummery = useMutation(api.DiscussionRoom.UpdateSummery);
 
-  useEffect(() =>
-  {
-    if (DiscussionRoomData)
-    {
+
+  useEffect(() => {
+    if (DiscussionRoomData) {
       const Expert = CoachingExpert.find(item => item.name === DiscussionRoomData.expertName);
       setExpert(Expert);
     }
   }, [DiscussionRoomData]);
 
-  const cleanText = (text) =>
-  {
+  const cleanText = (text) => {
     return text.replace(/<\｜begin▁of▁sentence\｜>/g, "").trim();
   };
 
   // 🧠 Speak text using TTS API route
-  const speakText = async (text) =>
-  {
-    try
-    {
+  const speakText = async (text) => {
+    try {
       const response = await axios.post("/api/speech", { text }, { responseType: "arraybuffer" });
       const audioBlob = new Blob([response.data], { type: "audio/mpeg" });
       const audioUrl = URL.createObjectURL(audioBlob);
       const audio = new Audio(audioUrl);
       audio.play();
-    } 
-    catch (err)
-    {
+    } catch (err) {
       console.error("TTS playback error:", err);
     }
   };
 
   // Process AI message queue
-  useEffect(() =>
-  {
+  useEffect(() => {
     if (messageQueue.length === 0) return;
 
-    const processQueue = async () =>
-    {
+    const processQueue = async () => {
       const nextMessage = messageQueue[0];
-      try
-      {
+      try {
         const completion = await AIModel(nextMessage.topic, nextMessage.coachingOption, nextMessage.msg);
         let aiReply = completion?.choices?.[0]?.message?.content || "No response from AI.";
         aiReply = cleanText(aiReply);
 
         setChatHistory(prev => [...prev, { sender: "ai", text: aiReply }]);
         await speakText(aiReply); // 🔊 Play AI reply
-      } 
-      catch (err)
-      {
+      } catch (err) {
         setChatHistory(prev => [...prev, { sender: "ai", text: "⚠️ Error getting AI response." }]);
-      } 
-      finally
-      {
+      } finally {
         setMessageQueue(prev => prev.slice(1));
       }
     };
@@ -82,16 +72,14 @@ function DiscussionRoom()
     processQueue();
   }, [messageQueue]);
 
-  const sendToAI = (message) =>
-  {
+  const sendToAI = (message) => {
     if (!DiscussionRoomData) return;
     const topic = DiscussionRoomData?.topic || "General discussion";
     const coachingOption = DiscussionRoomData?.coachingOptions;
     setMessageQueue(prev => [...prev, { topic, coachingOption, msg: message }]);
   };
 
-  const connectToServer = () =>
-  {
+  const connectToServer = () => {
     setEnableMicrophone(true);
     isManuallyDisconnected.current = false;
 
@@ -103,12 +91,9 @@ function DiscussionRoom()
     recognition.interimResults = true;
     recognition.lang = "en-US";
 
-    recognition.onresult = (event) =>
-    {
-      for (let i = event.resultIndex; i < event.results.length; i++)
-      {
-        if (event.results[i].isFinal)
-        {
+    recognition.onresult = (event) => {
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        if (event.results[i].isFinal) {
           const message = event.results[i][0].transcript.trim();
           setChatHistory(prev => [...prev, { sender: "user", text: message }]);
           sendToAI(message);
@@ -117,16 +102,13 @@ function DiscussionRoom()
       }
     };
 
-    recognition.onend = () =>
-    {
-      if (!isManuallyDisconnected.current)
-      {
+    recognition.onend = () => {
+      if (!isManuallyDisconnected.current) {
         recognition.start();
       }
     };
 
-    recognition.onerror = (e) =>
-    {
+    recognition.onerror = (e) => {
       console.error("Speech recognition error:", e);
     };
 
@@ -134,15 +116,56 @@ function DiscussionRoom()
     recognitionRef.current = recognition;
   };
 
-  const disconnectToServer = () =>
-  {
-    if (recognitionRef.current)
-    {
+  const disconnectToServer = async () => {
+    if (recognitionRef.current) {
       isManuallyDisconnected.current = true;
       recognitionRef.current.stop();
     }
+
     setEnableMicrophone(false);
+
+    if (DiscussionRoomData) {
+      try {
+        await UpdateConversation({
+          id: DiscussionRoomData._id,
+          conversation: chatHistory
+        });
+        console.log("Conversation uploaded successfully.");
+      } catch (err) {
+        console.error("Failed to upload conversation:", err);
+      }
+    }
+
+    setEnableFeedback(true); // show feedback button
   };
+
+const sendFeedback = async () => {
+  if (!DiscussionRoomData) return;
+
+  try {
+    // Call AIModelFeedback to generate the summary
+    const feedbackResponse = await AIModelFeedback(
+      DiscussionRoomData.coachingOptions,
+      chatHistory
+    );
+
+    // Extract the text from the AI response
+    const summaryText = feedbackResponse?.choices?.[0]?.message?.content || "No feedback generated.";
+
+    // Save summary to database using Convex mutation
+    await UpdateSummery({
+      id: DiscussionRoomData._id,
+      summery: summaryText
+    });
+
+    console.log("Feedback summary saved to DB:", summaryText);
+    alert("Feedback processed and saved successfully!");
+    setEnableFeedback(false); // hide button after sending
+  } catch (err) {
+    console.error("Failed to process and save feedback:", err);
+    alert("Failed to process feedback.");
+  }
+};
 
   return (
     <div className="-mt-12">
@@ -191,6 +214,14 @@ function DiscussionRoom()
           <h2 className="mt-4 text-gray-400 text-sm text-center">
             At end of conversation we will automatically generate feedback
           </h2>
+
+          {enableFeedback && (
+            <div className="flex justify-center mt-4">
+              <button onClick={sendFeedback} className="btn-primary">
+                Send Feedback
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>

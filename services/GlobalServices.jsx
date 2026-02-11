@@ -22,3 +22,19 @@ export const AIModel = async (topic, coachingOption, msg) => {
     throw err;
   }
 };
+
+export const AIModelFeedback = async (coachingOption, conversation) => {
+  try {
+    // Convert conversation array into a single string
+    const msg = conversation
+      .map(m => `${m.sender === "user" ? "User" : "AI"}: ${m.text}`)
+      .join("\n");
+
+    const res = await axios.post("/api/sendToAIFeedback", { coachingOption, msg });
+    return res.data;
+  } catch (err) {
+    console.error("AI request failed:", err);
+    throw err;
+  }
+};
+

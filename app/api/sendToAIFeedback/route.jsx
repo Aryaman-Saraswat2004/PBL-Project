@@ -8,9 +8,9 @@ const openai = new OpenAI({
 })
 
 export async function POST(req) {
-  const { topic, coachingOption, msg } = await req.json();
+  const {coachingOption, msg } = await req.json();
 
-  if (!topic || !coachingOption || !msg) {
+  if (!coachingOption || !msg) {
     return new Response(JSON.stringify({ error: "Missing data" }), { status: 400 });
   }
 
@@ -20,7 +20,7 @@ export async function POST(req) {
   }
 
   try {
-    const PROMPT = option.prompt.replace("{user_topic}", topic);
+    const PROMPT = option.summeryPrompt
 
     const completion = await openai.chat.completions.create({
       model: "deepseek/deepseek-chat-v3.1:free",
