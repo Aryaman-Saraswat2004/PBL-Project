@@ -3,7 +3,7 @@ import { ExpertList } from "@/services/Options";
 
 const openai = new OpenAI({
   baseURL: "https://openrouter.ai/api/v1",
-  apiKey: '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',
+  apiKey: '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',
   dangerouslyAllowBrowser: true
 })
 
