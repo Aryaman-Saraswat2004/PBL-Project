@@ -50,7 +50,7 @@ function History() {
                 <h2 className='text-gray-400'>{item.coachingOption}</h2>
               </div>
             </div>
-            <Link href={'/view/summery/' + item._id}> 
+            <Link href={'/view-summery/' + item._id}> 
               <button varient='ouutline'> View Notes </button>
             </Link>
             
