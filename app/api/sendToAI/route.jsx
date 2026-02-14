@@ -1,11 +1,5 @@
-import OpenAI from "openai";
 import { ExpertList } from "@/services/Options";
-
-const openai = new OpenAI({
-  baseURL: "https://openrouter.ai/api/v1",
-  apiKey: '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',
-  dangerouslyAllowBrowser: true
-})
+import { getOpenRouterModel, streamChatToText } from "@/lib/openrouter";
 
 export async function POST(req) {
   const { topic, coachingOption, msg } = await req.json();
@@ -21,16 +15,22 @@ export async function POST(req) {
 
   try {
     const PROMPT = option.prompt.replace("{user_topic}", topic);
-
-    const completion = await openai.chat.completions.create({
-      model: "deepseek/deepseek-chat-v3.1:free",
+    const model = getOpenRouterModel();
+    const content = await streamChatToText({
+      model,
       messages: [
         { role: "assistant", content: PROMPT },
         { role: "user", content: msg },
       ],
     });
 
-    return new Response(JSON.stringify(completion), { status: 200 });
+    return new Response(
+      JSON.stringify({
+        model,
+        choices: [{ message: { content } }],
+      }),
+      { status: 200 }
+    );
   } catch (err) {
     console.error("AI error:", err);
     return new Response(JSON.stringify({ error: err.message }), { status: 500 });

@@ -2,6 +2,21 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 ## Getting Started
 
+Create your local env file first:
+
+```bash
+cp .env.example .env.local
+```
+
+Set the required values in `.env.local`:
+
+- `NEXT_PUBLIC_CONVEX_URL`
+- `OPENROUTER_API_KEY`
+- `OPENROUTER_MODEL` (optional, defaults to `deepseek/deepseek-r1`)
+- `ASSEMBLY_API_KEY`
+- `ELEVENLABS_API_KEY`
+- `ELEVENLABS_VOICE_ID` (optional override)
+
 First, run the development server:
 
 ```bash

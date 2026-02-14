@@ -5,15 +5,19 @@ export async function POST(req) {
     const { text } = await req.json();
     if (!text) return new Response("No text provided", { status: 400 });
 
-    // Replace with your ElevenLabs voice ID
-    const VOICE_ID = "JBFqnCBsd6RMkjVDRZzb"; 
+    const elevenLabsApiKey = process.env.ELEVENLABS_API_KEY;
+    const voiceId = process.env.ELEVENLABS_VOICE_ID || "JBFqnCBsd6RMkjVDRZzb";
+
+    if (!elevenLabsApiKey) {
+      return new Response("ELEVENLABS_API_KEY is not set", { status: 500 });
+    }
 
     const response = await axios.post(
-      `https://api.elevenlabs.io/v1/text-to-speech/${VOICE_ID}?output_format=mp3_44100_128`,
+      `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=mp3_44100_128`,
       { text },
       {
         headers: {
-          "xi-api-key": process.env.ELEVENLABS_API_KEY,
+          "xi-api-key": elevenLabsApiKey,
           "Content-Type": "application/json",
         },
         responseType: "arraybuffer", // important to get audio bytes
